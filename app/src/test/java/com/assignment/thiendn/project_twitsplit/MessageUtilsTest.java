@@ -38,7 +38,7 @@ public class MessageUtilsTest {
         output3 = MessageUtils.splitMessage(input3);
         assertEquals(expected3, output3);
 
-        String input4 = "     I can't image Tweeter               now supports chunking my messages.     ";
+        String input4 = "     I can't image Tweeter               now supports chunking my messages.                   ";
         String[] output4;
         String[] expected4 = new String[]{"1/5 I can't image",
                 "2/5 Tweeter now",

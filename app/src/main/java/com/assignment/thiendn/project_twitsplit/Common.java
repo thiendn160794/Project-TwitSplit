@@ -5,5 +5,5 @@ package com.assignment.thiendn.project_twitsplit;
  */
 
 public class Common {
-    public static final int LIMIT_MESSAGE_LENGTH = 20;
+    public static final int LIMIT_MESSAGE_LENGTH = 50;
 }
