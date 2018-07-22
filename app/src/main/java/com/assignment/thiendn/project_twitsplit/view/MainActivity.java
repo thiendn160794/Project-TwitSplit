@@ -1,5 +1,6 @@
 package com.assignment.thiendn.project_twitsplit.view;
 
+import android.graphics.Bitmap;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.content.ContextCompat;
@@ -8,6 +9,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,11 +20,27 @@ import android.widget.Toast;
 import com.assignment.thiendn.project_twitsplit.R;
 import com.assignment.thiendn.project_twitsplit.model.Message;
 import com.assignment.thiendn.project_twitsplit.presenter.MainPresenter;
+import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
+import io.reactivex.Scheduler;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.BehaviorSubject;
+import io.reactivex.subjects.PublishSubject;
 
 public class MainActivity extends AppCompatActivity implements IListMessageView, InputMessageDialogFragment.IAddTaskDialogListener{
 
@@ -36,19 +54,97 @@ public class MainActivity extends AppCompatActivity implements IListMessageView,
     MainPresenter mPresenter;
     ListMessagesAdapter mAdapter;
     ArrayList<Message> mListMessages = new ArrayList<>();
+    CompositeDisposable compositeDisposable = new CompositeDisposable();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
-        setTitle("Tweeter");
-        fabAdd.setOnClickListener(new View.OnClickListener() {
+
+        ArrayList<String> links = new ArrayList<>();
+        links.add("http://113.190.253.181:855/AppBackground/Sky/1.jpg");
+        links.add("http://113.190.253.181:855/AppBackground/Sky/2.jpg");
+        links.add("http://113.190.253.181:855/AppBackground/Sky/3.jpg");
+        links.add("http://113.190.253.181:855/AppBackground/Sky/4.jpg");
+        links.add("http://113.190.253.181:855/AppBackground/Sky/5.jpg");
+
+        final PublishSubject<Bitmap> subject = PublishSubject.create();
+        final BehaviorSubject<String> behaviorSubject = BehaviorSubject.createDefault("sssss");
+        Observable<Bitmap> obs = Observable.just(null);
+
+        obs.subscribe(subject);
+
+        subject.subscribe(new Consumer<Bitmap>() {
             @Override
-            public void onClick(View v) {
-                mPresenter.onAddButtonClick();
+            public void accept(Bitmap bitmap) throws Exception {
+
             }
         });
+
+
+        Observable.zip(Observable.just(links.get(0)), Observable.just(links.get(1)), new BiFunction<String, String, Object>() {
+            @Override
+            public Object apply(String s, String s2) throws Exception {
+                return null;
+            }
+        });
+        compositeDisposable.add(Observable.fromIterable(links)
+                .flatMap(new Function<String, ObservableSource<Bitmap>>() {
+                    @Override
+                    public ObservableSource<Bitmap> apply(final String s) throws Exception {
+                        return Observable.create(new ObservableOnSubscribe<Bitmap>() {
+                            @Override
+                            public void subscribe(ObservableEmitter<Bitmap> emitter) throws Exception {
+                                if (!emitter.isDisposed()) {
+                                    try {
+                                        emitter.onNext(Picasso.get().load(s).get());
+                                        emitter.onComplete();
+                                    } catch (Exception ex) {
+                                        emitter.onError(ex);
+                                    }
+                                }
+                            }
+                        })
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .doOnNext(new Consumer<Bitmap>() {
+                                    @Override
+                                    public void accept(Bitmap bitmap) throws Exception {
+                                        System.out.println("doOnNext: "+ Thread.currentThread());
+                                        subject.onNext(bitmap);
+                                    }
+                                })
+                                .doOnComplete(new Action() {
+                                    @Override
+                                    public void run() throws Exception {
+                                        System.out.println("onComplete: "+ Thread.currentThread());
+                                    }
+                                });
+
+                    }
+                })
+                .subscribe(new Consumer<Bitmap>() {
+                    @Override
+                    public void accept(Bitmap bitmap) throws Exception {
+                        Toast.makeText(MainActivity.this, "Thanh cong", Toast.LENGTH_SHORT).show();
+                    }
+                }));
+
+        compositeDisposable.add(subject.subscribe(new Consumer<Bitmap>() {
+            @Override
+            public void accept(Bitmap bitmap) throws Exception {
+
+            }
+        }));
+        setTitle("Tweeter");
+//        fabAdd.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                mPresenter.onAddButtonClick();
+//            }
+//        });
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
@@ -151,5 +247,11 @@ public class MainActivity extends AppCompatActivity implements IListMessageView,
                 tvMessageContain.setText(messageContain);
             }
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        compositeDisposable.clear();
+        super.onDestroy();
     }
 }
